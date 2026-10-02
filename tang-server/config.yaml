@@ -1,0 +1,22 @@
+name: "Tang Server"
+description: "Network-Bound Disk Encryption (Tang) server for Home Assistant"
+version: "1.0.0"
+slug: "tang_server"
+url: "https://github.com/CharlesTerrell/ha-tang-server"
+startup: "services"
+boot: "auto"
+init: false
+host_network: true
+arch:
+  - amd64
+  - aarch64
+  - armv7
+map:
+  - type: data
+    read_only: false
+options:
+  port: 7500
+  listen_ip: "auto"
+schema:
+  port: "port"
+  listen_ip: "str"

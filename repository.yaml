@@ -1,0 +1,4 @@
+# https://developers.home-assistant.io/docs/apps/repository#repository-configuration
+name: "Tang Server Repository"
+url: "https://github.com/CharlesTerrell/ha-tang-server"
+maintainer: "Charles Terrell"

@@ -1,0 +1,16 @@
+.pio
+.vscode
+.idea
+*.o
+*.bin
+*.elf
+*.uf2
+*.hex
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+Thumbs.db
+.specstory
+.platformio
+.cache

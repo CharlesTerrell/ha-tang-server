@@ -1,0 +1,7 @@
+configuration:
+  port:
+    name: "Listening Port"
+    description: "The TCP port the Tang server listens on (default: 7500)."
+  listen_ip:
+    name: "LAN IP Address"
+    description: "The host's physical LAN IP to bind to. Leave as 'auto' to automatically detect the physical network interface. For security, binding to Tailscale addresses is prohibited."
