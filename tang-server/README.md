@@ -21,13 +21,13 @@ If an encrypted machine is disconnected from your local network (e.g. lost or st
 
 ## Important Security Note
 
-This app is designed to unlock **client devices** on the same local network as Home Assistant. It is **not** designed to encrypt Home Assistant OS itself. Physical and network security of your Home Assistant server remains your responsibility.
+This app is designed to unlock **client devices** on the same local network as Home Assistant. It is **not** designed to encrypt Home Assistant OS itself.
 
 ---
 
 ## Limitations
 
-- **No VPN / Tailscale Access**: By design. Remote decryption undermines the physical security guarantees of NBDE.
+- **No VPN / Tailscale Access**: By design. Remote decryption undermines the location-based security guarantees of NBDE.
 - **IPv4 Only**: IPv6 binding is not currently implemented.
 - **Single Interface**: Automatically detects and binds to the primary physical LAN interface.
 

@@ -1,6 +1,6 @@
 # Tang Server: Network-Bound Disk Encryption Server for Home Assistant
 
-**Tang** is an automated encryption key server providing Network-Bound Disk Encryption (NBDE). It allows LUKS-encrypted disks as well as natively encrypted ZFS datasets running on client machines with **Clevis** to automatically unlock upon booting, provided they are connected to your trusted local network.
+**Tang** is an automated server that provides decryption keys for Network-Bound Disk Encryption (NBDE). It allows devices with encrypted data storage (LUKS for example) to unlock automatically upon booting, provided they are connected to your trusted local network. The software that runs on the encrypted devices is called **Clevis**.
 
 **Important**: This is for encrypting devices that share a network with Home Assistant. It is *not* for encrypting Home Assistant OS itself. Security of your Home Assistant machine (including physical access) is your responsibility.
 
@@ -167,7 +167,7 @@ clevis decrypt < /etc/zfs/zfs_key.jwe | sudo zfs load-key -a
 Create `/etc/systemd/system/zfs-load-key-tang.service`:
 ```ini
 [Unit]
-Description=Load ZFS encryption keys via Tang NBDE
+Description=Load ZFS encryption keys via Tang
 DefaultDependencies=no
 After=network-online.target zfs-import.target
 Wants=network-online.target
