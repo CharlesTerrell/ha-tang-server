@@ -93,30 +93,23 @@ else
   echo "[+] Found ${KEY_COUNT} existing key file(s) in ${KEY_DIR}."
 fi
 
-# Start socat in background and handle shutdown signals
-cleanup() {
-  echo "[*] Stopping Tang service..."
-  if [ -n "${SOCAT_PID}" ] && kill -0 "${SOCAT_PID}" 2>/dev/null; then
-    kill -TERM "${SOCAT_PID}" 2>/dev/null || true
-    wait "${SOCAT_PID}" 2>/dev/null || true
-  fi
-  exit 0
-}
-
-trap cleanup SIGTERM SIGINT
-
-socat TCP4-LISTEN:${PORT},bind=${BIND_IP},reuseaddr,fork EXEC:"/usr/libexec/tangd ${KEY_DIR}" &
-SOCAT_PID=$!
-
-# Wait briefly for listener to be active
-sleep 1
-
 # Retrieve active advertised keys and compute SHA-256 thumbprint
 THUMBPRINT=""
-ADV=$(curl -sSf "http://${BIND_IP}:${PORT}/adv" 2>/dev/null || true)
+ADV=$(printf 'GET /adv HTTP/1.1\r\nHost: localhost\r\n\r\n' | /usr/libexec/tangd "${KEY_DIR}" 2>/dev/null | sed '1,/^\r\{0,1\}$/d')
 if [ -n "${ADV}" ]; then
   THUMBPRINT=$(jose fmt --json "${ADV}" -g payload -y -o- | jose jwk use -i- -r -u verify -o- | jose jwk thp -i- -a S256 2>/dev/null || true)
 fi
+
+# Create a lightweight wrapper that resolves client IP (REMOTE_ADDR) and adds timestamps
+cat << 'EOF' > /usr/local/bin/tangd-wrapper
+#!/usr/bin/env bash
+export REMOTE_ADDR="${SOCAT_PEERADDR:-<unknown>}"
+exec 3>&1
+/usr/libexec/tangd "$@" 2>&1 1>&3 | while IFS= read -r line; do
+  [ -n "${line}" ] && printf '[%(%Y-%m-%d %H:%M:%S)T] %s\n' -1 "${line}" >&2
+done
+EOF
+chmod 755 /usr/local/bin/tangd-wrapper
 
 echo "======================================================================"
 echo " Tang Server is active and listening"
@@ -136,5 +129,20 @@ fi
 echo "======================================================================"
 echo "[i] Protection active: This server is bound only to ${BIND_IP}."
 echo "[i] Connections from Tailscale or foreign subnets will not be answered."
+
+# Start socat in background and handle shutdown signals
+cleanup() {
+  echo "[*] Stopping Tang service..."
+  if [ -n "${SOCAT_PID}" ] && kill -0 "${SOCAT_PID}" 2>/dev/null; then
+    kill -TERM "${SOCAT_PID}" 2>/dev/null || true
+    wait "${SOCAT_PID}" 2>/dev/null || true
+  fi
+  exit 0
+}
+
+trap cleanup SIGTERM SIGINT
+
+socat TCP4-LISTEN:${PORT},bind=${BIND_IP},reuseaddr,fork EXEC:"/usr/local/bin/tangd-wrapper ${KEY_DIR}" &
+SOCAT_PID=$!
 
 wait "${SOCAT_PID}"

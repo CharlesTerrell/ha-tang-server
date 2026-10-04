@@ -148,19 +148,25 @@ Enter your existing LUKS passphrase when prompted to authorize the new keyslot.
 
 For clients booting from an unencrypted drive and unlocking a natively encrypted ZFS dataset (`encryption=on`):
 
-### 1. Encrypt your ZFS Passphrase with Tang
-Use Clevis to encrypt your dataset passphrase against the Home Assistant Tang server:
+### 1. Create Key Directory & Encrypt Passphrase
+Create the dedicated keys directory with restricted permissions:
+```bash
+sudo mkdir -p /etc/zfs/keys
+sudo chmod 700 /etc/zfs/keys
+```
+
+Use Clevis to encrypt your dataset passphrase against the Home Assistant Tang server (replace `tank_data` with your pool or dataset name):
 ```bash
 echo -n "YOUR_ZFS_PASSPHRASE" | clevis encrypt tang \
   '{"url":"http://192.168.1.50:7500","thp":"<HA_THUMBPRINT>"}' \
-  | sudo tee /etc/zfs/zfs_key.jwe > /dev/null
+  | sudo tee /etc/zfs/keys/tank_data.jwe > /dev/null
 
-sudo chmod 600 /etc/zfs/zfs_key.jwe
+sudo chmod 600 /etc/zfs/keys/tank_data.jwe
 ```
 
 Verify you can decrypt it manually:
 ```bash
-clevis decrypt < /etc/zfs/zfs_key.jwe | sudo zfs load-key -a
+clevis decrypt < /etc/zfs/keys/tank_data.jwe | sudo zfs load-key -a
 ```
 
 ### 2. Create Systemd Service for Boot Unlock
@@ -176,7 +182,7 @@ Before=zfs-mount.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/bin/sh -c "clevis decrypt < /etc/zfs/zfs_key.jwe | zfs load-key -a"
+ExecStart=/bin/sh -c "clevis decrypt < /etc/zfs/keys/tank_data.jwe | zfs load-key -a"
 
 [Install]
 WantedBy=zfs-mount.service
@@ -215,12 +221,26 @@ echo -n "YOUR_ZFS_PASSPHRASE" | clevis encrypt sss \
   '{"t": 1, "pins": {"tang": [
       {"url": "http://192.168.1.50:7500", "thp": "<HA_THUMBPRINT>"},
       {"url": "http://192.168.1.60:7500", "thp": "<BACKUP_PI_THUMBPRINT>"}
-  ]}}' | sudo tee /etc/zfs/zfs_key.jwe > /dev/null
+  ]}}' | sudo tee /etc/zfs/keys/tank_data.jwe > /dev/null
 
-sudo chmod 600 /etc/zfs/zfs_key.jwe
+sudo chmod 600 /etc/zfs/keys/tank_data.jwe
 ```
 
-The systemd service (`zfs-load-key-tang.service`) remains the same. It simply executes `clevis decrypt < /etc/zfs/zfs_key.jwe`, which queries both Tang servers in parallel and unlocks as soon as either responds.
+The systemd service (`zfs-load-key-tang.service`) remains the same. It simply executes `clevis decrypt < /etc/zfs/keys/tank_data.jwe`, which queries both Tang servers in parallel and unlocks as soon as either responds.
+
+### Adding, Removing, or Rotating Tang Servers Later (ZFS)
+Because the Tang server list and SSS policy are stored directly inside the `.jwe` file, updating your servers does not require modifying systemd or re-entering your raw passphrase. You can pipe `clevis decrypt` directly into `clevis encrypt sss`:
+```bash
+# Decrypt in memory, re-encrypt with the updated Tang servers, and write to a new file
+clevis decrypt < /etc/zfs/keys/tank_data.jwe | clevis encrypt sss \
+  '{"t": 1, "pins": {"tang": [
+      {"url": "http://192.168.1.50:7500", "thp": "<HA_THUMBPRINT>"},
+      {"url": "http://192.168.1.70:7500", "thp": "<NEW_BACKUP_THUMBPRINT>"}
+  ]}}' | sudo tee /etc/zfs/keys/tank_data.jwe.new > /dev/null
+
+sudo chmod 600 /etc/zfs/keys/tank_data.jwe.new
+sudo mv /etc/zfs/keys/tank_data.jwe.new /etc/zfs/keys/tank_data.jwe
+```
 
 ---
 
@@ -241,7 +261,7 @@ When enrolling clients (with either single or dual Tang servers), specifying the
     '{"t": 1, "pins": {"tang": [
         {"url": "http://192.168.1.50:7500"},
         {"url": "http://192.168.1.60:7500"}
-    ]}}' -y | sudo tee /etc/zfs/zfs_key.jwe > /dev/null
+    ]}}' -y | sudo tee /etc/zfs/keys/tank_data.jwe > /dev/null
   ```
 - **Boot Unlocking**: Once enrolled, the verified public keys are sealed directly into the LUKS keyslot or `.jwe` file. At boot time, `clevis decrypt` **never** prompts for confirmation or thumbprints.
 
